@@ -18,6 +18,18 @@
     ended: { icon: '🏁', name: '게임 종료' }
   };
 
+  const RANK_TIERS = [
+    { name: '브론즈', key: 'bronze', min: 0, max: 199, emoji: '🥉' },
+    { name: '실버', key: 'silver', min: 200, max: 499, emoji: '🥈' },
+    { name: '골드', key: 'gold', min: 500, max: 999, emoji: '🥇' },
+    { name: '다이아', key: 'diamond', min: 1000, max: 1999, emoji: '💎' },
+    { name: '마스터', key: 'master', min: 2000, max: Infinity, emoji: '👑' }
+  ];
+
+  function getRankTier(trophies) {
+    return RANK_TIERS.find(t => trophies >= t.min && trophies <= t.max) || RANK_TIERS[0];
+  }
+
   let state = {
     playerName: '',
     roomId: '',
@@ -28,7 +40,10 @@
     players: [],
     day: 0,
     alive: true,
-    myVote: null
+    myVote: null,
+    profile: null,
+    isRanked: false,
+    roomSettings: { requiredPlayers: 4, mafiaCount: 1, includeDoctor: true, includePolice: true }
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -45,16 +60,122 @@
     return div.innerHTML;
   }
 
+  // ===== MAIN MENU =====
+  const savedName = sessionStorage.getItem('mafiaPlayerName');
+  if (savedName) {
+    $('#mainPlayerName').value = savedName;
+    fetchProfile(savedName);
+  }
+
+  let profileDebounce = null;
+  $('#mainPlayerName').addEventListener('input', () => {
+    const name = $('#mainPlayerName').value.trim();
+    const hasName = name.length > 0;
+    $('#btnRanked').disabled = !hasName;
+    $('#btnFriendly').disabled = !hasName;
+
+    if (profileDebounce) clearTimeout(profileDebounce);
+    if (hasName) {
+      profileDebounce = setTimeout(() => fetchProfile(name), 500);
+    } else {
+      $('#profileCard').style.display = 'none';
+      state.profile = null;
+    }
+  });
+
+  if (savedName) {
+    $('#btnRanked').disabled = false;
+    $('#btnFriendly').disabled = false;
+  }
+
+  function fetchProfile(name) {
+    socket.emit('getProfile', { playerName: name }, (res) => {
+      state.profile = res.profile;
+      renderProfileCard(res.profile);
+    });
+  }
+
+  function renderProfileCard(profile) {
+    $('#profileCard').style.display = 'flex';
+    const tier = profile.rankTier;
+    $('#profileRankBadge').textContent = `${tier.emoji} ${tier.name}`;
+    $('#profileRankBadge').className = `profile-rank-badge rank-${tier.key}`;
+    $('#profileTrophies').textContent = `🏆 ${profile.trophies}`;
+    $('#profileRecord').textContent = `${profile.wins}승 ${profile.losses}패 (${profile.winRate}%)`;
+  }
+
+  function showMenuError(msg) {
+    $('#mainMenuError').textContent = msg;
+    setTimeout(() => { $('#mainMenuError').textContent = ''; }, 3000);
+  }
+
+  $('#btnRanked').addEventListener('click', () => {
+    const name = $('#mainPlayerName').value.trim();
+    if (!name) return showMenuError('닉네임을 입력해주세요.');
+    state.playerName = name;
+    sessionStorage.setItem('mafiaPlayerName', name);
+
+    socket.emit('joinMatchmaking', { playerName: name }, (res) => {
+      if (res.error) return showMenuError(res.error);
+      state.profile = res.profile;
+      state.isRanked = true;
+
+      const tier = res.profile.rankTier;
+      $('#queueRankBadge').textContent = `${tier.emoji} ${tier.name}`;
+      $('#queueRankBadge').className = `rank-badge rank-${tier.key}`;
+      $('#queueTrophies').textContent = `🏆 ${res.profile.trophies}`;
+      $('#queueTime').textContent = '0';
+
+      showScreen('screen-queue');
+    });
+  });
+
+  $('#btnFriendly').addEventListener('click', () => {
+    const name = $('#mainPlayerName').value.trim();
+    if (!name) return showMenuError('닉네임을 입력해주세요.');
+    state.playerName = name;
+    state.isRanked = false;
+    sessionStorage.setItem('mafiaPlayerName', name);
+    $('#playerName').value = name;
+    showScreen('screen-lobby');
+  });
+
+  $('#mainPlayerName').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('#btnRanked').click();
+  });
+
+  // ===== QUEUE =====
+  $('#btnCancelQueue').addEventListener('click', () => {
+    socket.emit('cancelMatchmaking');
+    showScreen('screen-main-menu');
+  });
+
+  socket.on('queueStatus', (data) => {
+    $('#queueTime').textContent = data.waitTime;
+  });
+
+  socket.on('matchFound', (data) => {
+    state.roomId = data.roomId;
+    state.playerId = data.playerId;
+    state.isRanked = true;
+  });
+
   // ===== LOBBY =====
+  $('#btnBackToMenu').addEventListener('click', () => {
+    showScreen('screen-main-menu');
+  });
+
   $('#btnCreate').addEventListener('click', () => {
     const name = $('#playerName').value.trim();
     if (!name) return showError('닉네임을 입력해주세요.');
     state.playerName = name;
+    sessionStorage.setItem('mafiaPlayerName', name);
     socket.emit('createRoom', { playerName: name }, (res) => {
       if (res.error) return showError(res.error);
       state.roomId = res.roomId;
       state.playerId = res.playerId;
       state.isHost = true;
+      state.isRanked = false;
       enterRoom();
     });
   });
@@ -65,11 +186,13 @@
     if (!name) return showError('닉네임을 입력해주세요.');
     if (!code) return showError('방 코드를 입력해주세요.');
     state.playerName = name;
+    sessionStorage.setItem('mafiaPlayerName', name);
     socket.emit('joinRoom', { roomId: code, playerName: name }, (res) => {
       if (res.error) return showError(res.error);
       state.roomId = res.roomId;
       state.playerId = res.playerId;
       state.isHost = false;
+      state.isRanked = false;
       enterRoom();
     });
   });
@@ -113,11 +236,7 @@
   // ===== SETTINGS =====
   function updateSettingsVisibility() {
     const settingsPanel = $('#roleSettings');
-    if (state.isHost) {
-      settingsPanel.style.display = 'block';
-    } else {
-      settingsPanel.style.display = 'none';
-    }
+    settingsPanel.style.display = state.isHost ? 'block' : 'none';
   }
 
   function sendSettings() {
@@ -152,8 +271,6 @@
     policeBtn.textContent = preview.includePolice ? 'ON' : 'OFF';
     policeBtn.classList.toggle('on', preview.includePolice);
   }
-
-  state.roomSettings = { requiredPlayers: 4, mafiaCount: 1, includeDoctor: true, includePolice: true };
 
   $('#playersDown').addEventListener('click', () => {
     if (state.roomSettings.requiredPlayers > 4) {
@@ -197,9 +314,14 @@
     list.innerHTML = '';
     players.forEach((p, i) => {
       const li = document.createElement('li');
+      let rankHtml = '';
+      if (p.rankTier) {
+        rankHtml = `<span class="rank-badge rank-${p.rankTier.key}">${p.rankTier.emoji}</span>`;
+      }
       li.innerHTML = `
         <div class="player-avatar">${sanitize(p.name[0])}</div>
         <span class="player-name">${sanitize(p.name)}</span>
+        ${rankHtml}
         ${i === 0 ? '<span class="host-badge">방장</span>' : ''}
       `;
       list.appendChild(li);
@@ -212,11 +334,7 @@
     const btn = $('#btnStart');
     const required = state.roomSettings.requiredPlayers || 4;
     const enough = state.players.length >= required;
-    if (state.isHost && enough) {
-      btn.style.display = 'block';
-    } else {
-      btn.style.display = 'none';
-    }
+    btn.style.display = (state.isHost && enough) ? 'block' : 'none';
     const hint = $('.room-footer .hint');
     if (!enough) {
       hint.textContent = `${required}명이 필요합니다 (현재 ${state.players.length}명)`;
@@ -233,6 +351,13 @@
     $('#actionArea').innerHTML = '';
     state.alive = true;
     state.myVote = null;
+
+    if (state.isRanked && state.profile) {
+      $('#trophyDisplay').style.display = 'flex';
+      $('#trophyCount').textContent = state.profile.trophies;
+    } else {
+      $('#trophyDisplay').style.display = 'none';
+    }
   }
 
   function updatePhaseUI(phase, day) {
@@ -292,7 +417,9 @@
     players.forEach(p => {
       const chip = document.createElement('div');
       chip.className = `player-chip ${p.alive ? '' : 'dead'} ${p.connected === false ? 'disconnected' : ''}`;
-      chip.innerHTML = `<span class="status-dot"></span>${sanitize(p.name)}`;
+      let rankEmoji = '';
+      if (p.rankTier) rankEmoji = `<span class="rank-emoji">${p.rankTier.emoji}</span>`;
+      chip.innerHTML = `<span class="status-dot"></span>${rankEmoji}${sanitize(p.name)}`;
       grid.appendChild(chip);
     });
   }
@@ -416,11 +543,11 @@
   // ===== SOCKET EVENTS =====
   socket.on('roomUpdate', (roomState) => {
     state.players = roomState.players;
+    if (roomState.settings) {
+      state.roomSettings = { ...roomState.settings };
+    }
     if (roomState.phase === 'waiting') {
       updateRoomPlayers(roomState.players);
-      if (roomState.settings) {
-        state.roomSettings = { ...roomState.settings };
-      }
       if (roomState.rolePreview) {
         updateRolePreview(roomState.rolePreview);
       }
@@ -501,7 +628,6 @@
   });
 
   socket.on('playerDied', (data) => {
-    const me = state.players.find(p => p.id === state.playerId);
     if (data.playerId === state.playerId) {
       state.alive = false;
     }
@@ -532,6 +658,35 @@
       title.style.color = 'var(--accent-green)';
     }
 
+    const trophyResults = $('#trophyResults');
+    if (data.isRanked && data.trophyChanges) {
+      const myChange = data.trophyChanges.find(tc => tc.playerId === state.playerId);
+      if (myChange) {
+        trophyResults.style.display = 'block';
+        const isPositive = myChange.change > 0;
+        $('#trophyChange').innerHTML = `
+          <span class="trophy-delta ${isPositive ? 'positive' : 'negative'}">
+            ${isPositive ? '+' : ''}${myChange.change} 🏆
+          </span>
+          <span class="trophy-total">${myChange.newTrophies} 🏆</span>
+        `;
+        const rankEl = $('#trophyNewRank');
+        if (myChange.oldRank.key !== myChange.newRank.key) {
+          rankEl.innerHTML = `
+            <div class="rank-change-animation">
+              <span class="old-rank">${myChange.oldRank.emoji} ${myChange.oldRank.name}</span>
+              <span class="rank-arrow">→</span>
+              <span class="new-rank">${myChange.newRank.emoji} ${myChange.newRank.name}</span>
+            </div>
+          `;
+        } else {
+          rankEl.innerHTML = `<span>${myChange.newRank.emoji} ${myChange.newRank.name}</span>`;
+        }
+      }
+    } else {
+      trophyResults.style.display = 'none';
+    }
+
     const roleList = $('#gameOverRoles');
     roleList.innerHTML = '';
     data.players.forEach(p => {
@@ -547,6 +702,9 @@
   });
 
   $('#btnBackToLobby').addEventListener('click', () => {
+    if (state.playerName) {
+      sessionStorage.setItem('mafiaPlayerName', state.playerName);
+    }
     location.reload();
   });
 

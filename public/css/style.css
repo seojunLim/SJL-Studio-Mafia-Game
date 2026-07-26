@@ -93,6 +93,163 @@ body {
   width: 100%;
 }
 
+/* ===== MAIN MENU ===== */
+.main-menu-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  gap: 24px;
+}
+
+.menu-buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-ranked,
+.btn-friendly {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px;
+}
+
+.btn-ranked {
+  background: linear-gradient(135deg, #e94560, #c0392b);
+}
+
+.btn-friendly {
+  background: linear-gradient(135deg, #4e9af1, #2980b9);
+}
+
+.btn-icon { font-size: 28px; }
+.btn-label { font-size: 20px; font-weight: 800; }
+.btn-desc { font-size: 12px; opacity: 0.8; }
+
+.profile-card {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-rank-badge {
+  font-size: 28px;
+  text-align: center;
+  min-width: 80px;
+  font-weight: 700;
+}
+
+.profile-rank-badge.rank-bronze { color: #cd7f32; }
+.profile-rank-badge.rank-silver { color: #c0c0c0; }
+.profile-rank-badge.rank-gold { color: #ffd700; }
+.profile-rank-badge.rank-diamond { color: #b9f2ff; }
+.profile-rank-badge.rank-master { color: #ff6b6b; }
+
+.profile-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-trophies {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+}
+
+.profile-record {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ===== QUEUE ===== */
+.queue-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  gap: 30px;
+}
+
+.queue-animation {
+  text-align: center;
+}
+
+.queue-spinner {
+  width: 80px;
+  height: 80px;
+  border: 4px solid var(--border);
+  border-top: 4px solid var(--accent-red);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.queue-timer {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  margin-top: 12px;
+}
+
+.queue-info {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.queue-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rank-badge.rank-bronze { background: rgba(205, 127, 50, 0.2); color: #cd7f32; }
+.rank-badge.rank-silver { background: rgba(192, 192, 192, 0.2); color: #c0c0c0; }
+.rank-badge.rank-gold { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
+.rank-badge.rank-diamond { background: rgba(185, 242, 255, 0.2); color: #b9f2ff; }
+.rank-badge.rank-master { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+
+.rank-emoji {
+  font-size: 12px;
+  margin-right: 2px;
+}
+
 /* ===== LOBBY ===== */
 .lobby-container {
   display: flex;
@@ -104,6 +261,17 @@ body {
   margin: 0 auto;
   padding: 20px;
   gap: 30px;
+}
+
+.lobby-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.lobby-header h2 {
+  font-size: 20px;
 }
 
 .logo h1 {
@@ -795,6 +963,69 @@ body {
 
 .role-reveal-item .reveal-role {
   font-size: 13px;
+}
+
+/* Trophy Display (Game Header) */
+.trophy-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(245, 197, 66, 0.15);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(245, 197, 66, 0.3);
+}
+
+/* Trophy Results (Game Over) */
+.trophy-results {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.trophy-delta {
+  font-size: 32px;
+  font-weight: 800;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.trophy-delta.positive { color: var(--accent-green); }
+.trophy-delta.negative { color: var(--accent-red); }
+
+.trophy-total {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.rank-change-animation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 18px;
+}
+
+.rank-change-animation .rank-arrow {
+  color: var(--accent-yellow);
+  font-size: 24px;
+}
+
+.rank-change-animation .new-rank {
+  animation: rankUp 0.5s ease-out;
+  font-weight: 700;
+}
+
+@keyframes rankUp {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* Police result notification */

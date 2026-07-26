@@ -8,12 +8,62 @@
 </head>
 <body>
 
-  <!-- LOBBY -->
-  <section id="screen-lobby" class="screen active">
-    <div class="lobby-container">
+  <!-- MAIN MENU -->
+  <section id="screen-main-menu" class="screen active">
+    <div class="main-menu-container">
       <div class="logo">
         <h1>🔪 마피아 게임</h1>
         <p class="subtitle">SJL Studio</p>
+      </div>
+      <div class="form-group">
+        <input type="text" id="mainPlayerName" placeholder="닉네임을 입력하세요" maxlength="8" autocomplete="off">
+      </div>
+      <div id="profileCard" class="profile-card" style="display:none">
+        <div class="profile-rank-badge" id="profileRankBadge"></div>
+        <div class="profile-stats">
+          <span class="profile-trophies" id="profileTrophies">🏆 0</span>
+          <span class="profile-record" id="profileRecord">0승 0패 (0%)</span>
+        </div>
+      </div>
+      <div class="menu-buttons">
+        <button id="btnRanked" class="btn btn-ranked btn-large" disabled>
+          <span class="btn-icon">⚔️</span>
+          <span class="btn-label">랭크 게임</span>
+          <span class="btn-desc">자동 매칭 · 6인</span>
+        </button>
+        <button id="btnFriendly" class="btn btn-friendly btn-large" disabled>
+          <span class="btn-icon">🤝</span>
+          <span class="btn-label">친선전</span>
+          <span class="btn-desc">친구와 함께</span>
+        </button>
+      </div>
+      <p id="mainMenuError" class="error-text"></p>
+    </div>
+  </section>
+
+  <!-- MATCHMAKING QUEUE -->
+  <section id="screen-queue" class="screen">
+    <div class="queue-container">
+      <div class="queue-animation">
+        <div class="queue-spinner"></div>
+        <h2>매칭 중...</h2>
+        <p class="queue-timer">대기: <span id="queueTime">0</span>초</p>
+        <p class="queue-info">비슷한 실력의 플레이어를 찾고 있습니다</p>
+      </div>
+      <div class="queue-profile">
+        <span id="queueRankBadge" class="rank-badge"></span>
+        <span id="queueTrophies">🏆 0</span>
+      </div>
+      <button id="btnCancelQueue" class="btn btn-danger btn-large">매칭 취소</button>
+    </div>
+  </section>
+
+  <!-- LOBBY (Friendly) -->
+  <section id="screen-lobby" class="screen">
+    <div class="lobby-container">
+      <div class="lobby-header">
+        <button id="btnBackToMenu" class="btn btn-small btn-danger">← 메뉴</button>
+        <h2>🤝 친선전</h2>
       </div>
       <div class="form-group">
         <input type="text" id="playerName" placeholder="닉네임을 입력하세요" maxlength="8" autocomplete="off">
@@ -100,6 +150,10 @@
           <span id="timerValue" class="timer-value">60</span>
           <span class="timer-label">초</span>
         </div>
+        <div class="trophy-display" id="trophyDisplay" style="display:none">
+          <span>🏆</span>
+          <span id="trophyCount">0</span>
+        </div>
         <div class="role-badge" id="roleBadge">
           <span id="roleEmoji"></span>
           <span id="roleName"></span>
@@ -132,6 +186,10 @@
     <div class="game-over-overlay" id="gameOverOverlay" style="display:none">
       <div class="game-over-content">
         <h2 id="gameOverTitle"></h2>
+        <div id="trophyResults" class="trophy-results" style="display:none">
+          <div class="trophy-change" id="trophyChange"></div>
+          <div class="trophy-new-rank" id="trophyNewRank"></div>
+        </div>
         <div id="gameOverRoles" class="role-reveal-list"></div>
         <button id="btnBackToLobby" class="btn btn-primary btn-large">로비로 돌아가기</button>
       </div>

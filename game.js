@@ -7,6 +7,62 @@ const ROLES = {
   CITIZEN: { name: '시민', team: 'citizen', emoji: '👤' }
 };
 
+const RANK_TIERS = [
+  { name: '브론즈', key: 'bronze', min: 0, max: 199, emoji: '🥉' },
+  { name: '실버', key: 'silver', min: 200, max: 499, emoji: '🥈' },
+  { name: '골드', key: 'gold', min: 500, max: 999, emoji: '🥇' },
+  { name: '다이아', key: 'diamond', min: 1000, max: 1999, emoji: '💎' },
+  { name: '마스터', key: 'master', min: 2000, max: Infinity, emoji: '👑' }
+];
+
+const TROPHY_REWARDS = { citizen_win: 30, mafia_win: 40, lose: -15 };
+
+function getRankTier(trophies) {
+  return RANK_TIERS.find(t => trophies >= t.min && trophies <= t.max) || RANK_TIERS[0];
+}
+
+class PlayerProfile {
+  constructor(name) {
+    this.name = name;
+    this.trophies = 0;
+    this.wins = 0;
+    this.losses = 0;
+  }
+
+  get winRate() {
+    const total = this.wins + this.losses;
+    return total === 0 ? 0 : Math.round((this.wins / total) * 100);
+  }
+
+  get rankTier() {
+    return getRankTier(this.trophies);
+  }
+
+  applyResult(won, winnerTeam) {
+    const oldTrophies = this.trophies;
+    const oldRank = this.rankTier;
+    if (won) {
+      this.wins++;
+      this.trophies += winnerTeam === 'mafia' ? TROPHY_REWARDS.mafia_win : TROPHY_REWARDS.citizen_win;
+    } else {
+      this.losses++;
+      this.trophies = Math.max(0, this.trophies + TROPHY_REWARDS.lose);
+    }
+    return { oldTrophies, newTrophies: this.trophies, change: this.trophies - oldTrophies, oldRank, newRank: this.rankTier };
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      trophies: this.trophies,
+      wins: this.wins,
+      losses: this.losses,
+      winRate: this.winRate,
+      rankTier: this.rankTier
+    };
+  }
+}
+
 const PHASE_DURATION = {
   day_discussion: 60,
   day_vote: 30,
@@ -90,6 +146,8 @@ class Room {
       includeDoctor: true,
       includePolice: true
     };
+    this.isRanked = false;
+    this.profileStore = null;
   }
 
   addPlayer(socketId, name) {
@@ -523,41 +581,43 @@ class Room {
     const aliveMafia = this.getAliveByRole('MAFIA').length;
     const aliveCitizens = this.getAlivePlayers().length - aliveMafia;
 
-    if (aliveMafia === 0) {
-      this.phase = 'ended';
-      const aiMsg = randomPick(AI_MESSAGES.citizenWin);
-      io.to(this.id).emit('chatMessage', { sender: 'AI 진행자', message: aiMsg, type: 'ai' });
-      io.to(this.id).emit('gameEnd', {
-        winner: 'citizen',
-        players: this.players.map(p => ({
-          name: p.name,
-          role: p.role,
-          roleName: ROLES[p.role].name,
-          alive: p.alive
-        }))
-      });
-      this.clearTimer();
-      return true;
+    let winner = null;
+    if (aliveMafia === 0) winner = 'citizen';
+    else if (aliveMafia >= aliveCitizens) winner = 'mafia';
+
+    if (!winner) return false;
+
+    this.phase = 'ended';
+    const aiMsg = randomPick(winner === 'citizen' ? AI_MESSAGES.citizenWin : AI_MESSAGES.mafiaWin);
+    io.to(this.id).emit('chatMessage', { sender: 'AI 진행자', message: aiMsg, type: 'ai' });
+
+    let trophyChanges = null;
+    if (this.isRanked && this.profileStore) {
+      trophyChanges = this.players.map(p => {
+        const profile = this.profileStore.get(p.name);
+        if (!profile) return null;
+        const team = ROLES[p.role].team;
+        const won = (winner === 'mafia' && team === 'mafia') || (winner === 'citizen' && team === 'citizen');
+        const result = profile.applyResult(won, winner);
+        return { playerId: p.id, playerName: p.name, ...result };
+      }).filter(Boolean);
     }
 
-    if (aliveMafia >= aliveCitizens) {
-      this.phase = 'ended';
-      const aiMsg = randomPick(AI_MESSAGES.mafiaWin);
-      io.to(this.id).emit('chatMessage', { sender: 'AI 진행자', message: aiMsg, type: 'ai' });
-      io.to(this.id).emit('gameEnd', {
-        winner: 'mafia',
-        players: this.players.map(p => ({
-          name: p.name,
-          role: p.role,
-          roleName: ROLES[p.role].name,
-          alive: p.alive
-        }))
-      });
-      this.clearTimer();
-      return true;
-    }
+    const payload = {
+      winner,
+      isRanked: this.isRanked,
+      players: this.players.map(p => ({
+        name: p.name,
+        role: p.role,
+        roleName: ROLES[p.role].name,
+        alive: p.alive
+      }))
+    };
+    if (trophyChanges) payload.trophyChanges = trophyChanges;
 
-    return false;
+    io.to(this.id).emit('gameEnd', payload);
+    this.clearTimer();
+    return true;
   }
 
   startTimer(io, callback) {
@@ -580,28 +640,133 @@ class Room {
   }
 
   getState() {
-    return {
+    const state = {
       id: this.id,
       phase: this.phase,
       day: this.day,
       timeLeft: this.timeLeft,
-      players: this.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        alive: p.alive,
-        connected: p.connected
-      })),
+      players: this.players.map(p => {
+        const info = { id: p.id, name: p.name, alive: p.alive, connected: p.connected };
+        if (this.isRanked && this.profileStore) {
+          const profile = this.profileStore.get(p.name);
+          if (profile) {
+            info.trophies = profile.trophies;
+            info.rankTier = profile.rankTier;
+          }
+        }
+        return info;
+      }),
       defenseTarget: this.defenseTarget,
       settings: this.settings,
-      rolePreview: this.getRolePreview()
+      rolePreview: this.getRolePreview(),
+      isRanked: this.isRanked
     };
+    return state;
+  }
+}
+
+class MatchmakingQueue {
+  constructor(gameManager, io) {
+    this.queue = [];
+    this.gameManager = gameManager;
+    this.io = io;
+    this.MATCH_SIZE = 6;
+    this.BASE_RANGE = 200;
+    this.RANGE_EXPAND_PER_SEC = 10;
+    this.tickInterval = setInterval(() => this.tick(), 2000);
+  }
+
+  addPlayer(socketId, playerName, trophies) {
+    if (this.queue.some(q => q.socketId === socketId)) return 'ALREADY_QUEUED';
+    if (this.queue.some(q => q.playerName === playerName)) return 'NAME_TAKEN';
+    if (this.gameManager.findRoomBySocket(socketId)) return 'IN_GAME';
+    this.queue.push({ socketId, playerName, trophies, joinedAt: Date.now() });
+    return 'OK';
+  }
+
+  removePlayer(socketId) {
+    this.queue = this.queue.filter(q => q.socketId !== socketId);
+  }
+
+  tick() {
+    this.queue.forEach(entry => {
+      const sock = this.io.sockets.sockets.get(entry.socketId);
+      if (sock) {
+        sock.emit('queueStatus', {
+          waitTime: Math.floor((Date.now() - entry.joinedAt) / 1000),
+          queueSize: this.queue.length
+        });
+      }
+    });
+
+    if (this.queue.length < this.MATCH_SIZE) return;
+
+    const sorted = [...this.queue].sort((a, b) => a.trophies - b.trophies);
+    const now = Date.now();
+
+    for (let i = 0; i <= sorted.length - this.MATCH_SIZE; i++) {
+      const candidate = sorted.slice(i, i + this.MATCH_SIZE);
+      const spread = candidate[candidate.length - 1].trophies - candidate[0].trophies;
+      const canMatch = candidate.every(p => {
+        const waitSec = (now - p.joinedAt) / 1000;
+        const range = this.BASE_RANGE + waitSec * this.RANGE_EXPAND_PER_SEC;
+        return spread <= range * 2;
+      });
+
+      if (canMatch) {
+        this.formMatch(candidate);
+        return;
+      }
+    }
+  }
+
+  formMatch(players) {
+    const socketIds = new Set(players.map(p => p.socketId));
+    this.queue = this.queue.filter(q => !socketIds.has(q.socketId));
+
+    const room = this.gameManager.createRankedRoom();
+
+    players.forEach(p => {
+      const player = room.addPlayer(p.socketId, p.playerName);
+      const sock = this.io.sockets.sockets.get(p.socketId);
+      if (sock) sock.join(room.id);
+    });
+
+    players.forEach(p => {
+      const sock = this.io.sockets.sockets.get(p.socketId);
+      if (sock) {
+        const playerObj = room.getPlayerBySocket(p.socketId);
+        sock.emit('matchFound', {
+          roomId: room.id,
+          playerId: playerObj.id,
+          players: players.map(pp => ({ name: pp.playerName, trophies: pp.trophies }))
+        });
+      }
+    });
+
+    this.io.to(room.id).emit('roomUpdate', room.getState());
+
+    setTimeout(() => {
+      if (room.phase === 'waiting' && room.players.length === this.MATCH_SIZE) {
+        room.startGame(this.io);
+      }
+    }, 3000);
   }
 }
 
 class GameManager {
   constructor(io) {
     this.rooms = new Map();
+    this.profiles = new Map();
     this.io = io;
+    this.matchmakingQueue = new MatchmakingQueue(this, io);
+  }
+
+  getOrCreateProfile(name) {
+    if (!this.profiles.has(name)) {
+      this.profiles.set(name, new PlayerProfile(name));
+    }
+    return this.profiles.get(name);
   }
 
   createRoom() {
@@ -611,6 +776,19 @@ class GameManager {
     }
     const room = new Room(code);
     this.rooms.set(code, room);
+    return room;
+  }
+
+  createRankedRoom() {
+    const room = this.createRoom();
+    room.isRanked = true;
+    room.profileStore = this.profiles;
+    room.settings = {
+      requiredPlayers: 6,
+      mafiaCount: 2,
+      includeDoctor: true,
+      includePolice: true
+    };
     return room;
   }
 
@@ -634,4 +812,4 @@ class GameManager {
   }
 }
 
-module.exports = { GameManager, Room, Player, ROLES };
+module.exports = { GameManager, Room, Player, ROLES, RANK_TIERS, TROPHY_REWARDS, getRankTier };

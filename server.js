@@ -17,6 +17,29 @@ const gameManager = new GameManager(io);
 io.on('connection', (socket) => {
   console.log(`Connected: ${socket.id}`);
 
+  socket.on('getProfile', ({ playerName }, callback) => {
+    const profile = gameManager.getOrCreateProfile(playerName);
+    callback({ profile: profile.toJSON() });
+  });
+
+  socket.on('joinMatchmaking', ({ playerName }, callback) => {
+    const profile = gameManager.getOrCreateProfile(playerName);
+    const result = gameManager.matchmakingQueue.addPlayer(socket.id, playerName, profile.trophies);
+    if (result !== 'OK') {
+      const msgs = {
+        ALREADY_QUEUED: '이미 매칭 대기 중입니다.',
+        NAME_TAKEN: '같은 닉네임이 매칭 대기 중입니다.',
+        IN_GAME: '이미 게임에 참여 중입니다.'
+      };
+      return callback({ error: msgs[result] || '매칭 참여 실패' });
+    }
+    callback({ success: true, profile: profile.toJSON() });
+  });
+
+  socket.on('cancelMatchmaking', () => {
+    gameManager.matchmakingQueue.removePlayer(socket.id);
+  });
+
   socket.on('createRoom', ({ playerName }, callback) => {
     const room = gameManager.createRoom();
     const player = room.addPlayer(socket.id, playerName);
@@ -46,6 +69,7 @@ io.on('connection', (socket) => {
   socket.on('updateSettings', ({ roomId, settings }) => {
     const room = gameManager.getRoom(roomId);
     if (!room) return;
+    if (room.isRanked) return;
     const host = room.players[0];
     if (host.socketId !== socket.id) return;
     if (room.phase !== 'waiting') return;
@@ -102,6 +126,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    gameManager.matchmakingQueue.removePlayer(socket.id);
     const room = gameManager.findRoomBySocket(socket.id);
     if (!room) return;
     const player = room.getPlayerBySocket(socket.id);
