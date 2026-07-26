@@ -84,6 +84,11 @@ class Room {
     this.messages = [];
     this.defenseTarget = null;
     this.policeResult = null;
+    this.settings = {
+      mafiaCount: 1,
+      includeDoctor: true,
+      includePolice: true
+    };
   }
 
   addPlayer(socketId, name) {
@@ -116,15 +121,52 @@ class Room {
     return this.players.filter(p => p.alive && p.role === roleName);
   }
 
+  updateSettings(settings) {
+    const count = this.players.length;
+    const maxMafia = Math.max(1, Math.floor((count - 1) / 2));
+    this.settings.mafiaCount = Math.min(Math.max(1, settings.mafiaCount), maxMafia);
+    this.settings.includeDoctor = Boolean(settings.includeDoctor);
+    this.settings.includePolice = Boolean(settings.includePolice);
+
+    const specialRoles = this.settings.mafiaCount
+      + (this.settings.includeDoctor ? 1 : 0)
+      + (this.settings.includePolice ? 1 : 0);
+    if (specialRoles >= count) {
+      if (this.settings.includePolice && specialRoles > count) {
+        this.settings.includePolice = false;
+      }
+      if (this.settings.includeDoctor && this.settings.mafiaCount + (this.settings.includeDoctor ? 1 : 0) > count) {
+        this.settings.includeDoctor = false;
+      }
+      this.settings.mafiaCount = Math.min(this.settings.mafiaCount, count - 1);
+    }
+  }
+
+  getRolePreview() {
+    const count = this.players.length;
+    const s = this.settings;
+    const citizenCount = count - s.mafiaCount - (s.includeDoctor ? 1 : 0) - (s.includePolice ? 1 : 0);
+    return {
+      mafiaCount: s.mafiaCount,
+      doctorCount: s.includeDoctor ? 1 : 0,
+      policeCount: s.includePolice ? 1 : 0,
+      citizenCount: Math.max(0, citizenCount),
+      maxMafia: Math.max(1, Math.floor((count - 1) / 2)),
+      includeDoctor: s.includeDoctor,
+      includePolice: s.includePolice
+    };
+  }
+
   assignRoles() {
     const count = this.players.length;
     const roles = [];
+    const s = this.settings;
 
-    let mafiaCount = Math.max(1, Math.floor(count / 4));
+    const mafiaCount = Math.min(s.mafiaCount, Math.max(1, Math.floor((count - 1) / 2)));
     for (let i = 0; i < mafiaCount; i++) roles.push('MAFIA');
 
-    if (count >= 5) roles.push('DOCTOR');
-    if (count >= 5) roles.push('POLICE');
+    if (s.includeDoctor && roles.length < count - 1) roles.push('DOCTOR');
+    if (s.includePolice && roles.length < count - 1) roles.push('POLICE');
 
     while (roles.length < count) roles.push('CITIZEN');
 
@@ -544,7 +586,9 @@ class Room {
         alive: p.alive,
         connected: p.connected
       })),
-      defenseTarget: this.defenseTarget
+      defenseTarget: this.defenseTarget,
+      settings: this.settings,
+      rolePreview: this.getRolePreview()
     };
   }
 }

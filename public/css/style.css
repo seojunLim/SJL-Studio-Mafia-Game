@@ -279,6 +279,121 @@ body {
   text-align: center;
 }
 
+/* ===== ROLE SETTINGS ===== */
+.role-settings {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.role-settings h3 {
+  font-size: 15px;
+  margin-bottom: 12px;
+  color: var(--accent-yellow);
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-row:last-of-type {
+  border-bottom: none;
+}
+
+.setting-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.setting-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setting-value {
+  font-size: 20px;
+  font-weight: 800;
+  min-width: 28px;
+  text-align: center;
+  color: var(--accent-yellow);
+}
+
+.btn-setting {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-toggle {
+  min-width: 50px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.btn-toggle.on {
+  background: rgba(78, 154, 241, 0.2);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.role-preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.role-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.role-preview-item.mafia { background: rgba(233, 69, 96, 0.15); color: var(--accent-red); }
+.role-preview-item.doctor { background: rgba(78, 204, 163, 0.15); color: var(--accent-green); }
+.role-preview-item.police { background: rgba(78, 154, 241, 0.15); color: var(--accent-blue); }
+.role-preview-item.citizen { background: rgba(136, 153, 170, 0.15); color: var(--text-muted); }
+
+.role-settings-readonly {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.role-settings-readonly h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
 .room-footer .hint {
   color: var(--text-muted);
   font-size: 13px;

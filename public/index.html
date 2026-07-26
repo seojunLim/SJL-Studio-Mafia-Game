@@ -45,6 +45,32 @@
         <h3>플레이어 <span id="playerCount">0</span>/12</h3>
         <ul id="roomPlayerList"></ul>
       </div>
+      <!-- Settings (host only) -->
+      <div class="role-settings" id="roleSettings" style="display:none">
+        <h3>역할 설정</h3>
+        <div class="setting-row">
+          <div class="setting-label">🔪 마피아</div>
+          <div class="setting-control">
+            <button class="btn btn-small btn-setting" id="mafiaDown">-</button>
+            <span id="mafiaCountDisplay" class="setting-value">1</span>
+            <button class="btn btn-small btn-setting" id="mafiaUp">+</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">💉 의사</div>
+          <div class="setting-control">
+            <button class="btn btn-small btn-toggle on" id="doctorToggle">ON</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">🔍 경찰</div>
+          <div class="setting-control">
+            <button class="btn btn-small btn-toggle on" id="policeToggle">ON</button>
+          </div>
+        </div>
+        <div class="role-preview" id="rolePreview"></div>
+      </div>
+
       <div class="room-footer">
         <p class="hint">최소 4명이 필요합니다</p>
         <button id="btnStart" class="btn btn-primary btn-large" style="display:none">게임 시작</button>

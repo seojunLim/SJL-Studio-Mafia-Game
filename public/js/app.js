@@ -92,6 +92,7 @@
     showScreen('screen-room');
     $('#displayRoomCode').textContent = state.roomId;
     updateStartButton();
+    updateSettingsVisibility();
   }
 
   $('#btnCopy').addEventListener('click', () => {
@@ -107,6 +108,72 @@
 
   $('#btnStart').addEventListener('click', () => {
     socket.emit('startGame', { roomId: state.roomId });
+  });
+
+  // ===== SETTINGS =====
+  function updateSettingsVisibility() {
+    const settingsPanel = $('#roleSettings');
+    if (state.isHost) {
+      settingsPanel.style.display = 'block';
+    } else {
+      settingsPanel.style.display = 'none';
+    }
+  }
+
+  function sendSettings() {
+    socket.emit('updateSettings', {
+      roomId: state.roomId,
+      settings: state.roomSettings
+    });
+  }
+
+  function updateRolePreview(preview) {
+    if (!preview) return;
+    const container = $('#rolePreview');
+    let html = '';
+    if (preview.mafiaCount > 0)
+      html += `<span class="role-preview-item mafia">🔪 마피아 x${preview.mafiaCount}</span>`;
+    if (preview.doctorCount > 0)
+      html += `<span class="role-preview-item doctor">💉 의사 x${preview.doctorCount}</span>`;
+    if (preview.policeCount > 0)
+      html += `<span class="role-preview-item police">🔍 경찰 x${preview.policeCount}</span>`;
+    if (preview.citizenCount > 0)
+      html += `<span class="role-preview-item citizen">👤 시민 x${preview.citizenCount}</span>`;
+    container.innerHTML = html;
+
+    $('#mafiaCountDisplay').textContent = preview.mafiaCount;
+
+    const doctorBtn = $('#doctorToggle');
+    doctorBtn.textContent = preview.includeDoctor ? 'ON' : 'OFF';
+    doctorBtn.classList.toggle('on', preview.includeDoctor);
+
+    const policeBtn = $('#policeToggle');
+    policeBtn.textContent = preview.includePolice ? 'ON' : 'OFF';
+    policeBtn.classList.toggle('on', preview.includePolice);
+  }
+
+  state.roomSettings = { mafiaCount: 1, includeDoctor: true, includePolice: true };
+
+  $('#mafiaDown').addEventListener('click', () => {
+    if (state.roomSettings.mafiaCount > 1) {
+      state.roomSettings.mafiaCount--;
+      sendSettings();
+    }
+  });
+
+  $('#mafiaUp').addEventListener('click', () => {
+    state.roomSettings.mafiaCount++;
+    sendSettings();
+  });
+
+  $('#doctorToggle').addEventListener('click', () => {
+    state.roomSettings.includeDoctor = !state.roomSettings.includeDoctor;
+    sendSettings();
+  });
+
+  $('#policeToggle').addEventListener('click', () => {
+    state.roomSettings.includePolice = !state.roomSettings.includePolice;
+    sendSettings();
   });
 
   function updateRoomPlayers(players) {
@@ -334,6 +401,12 @@
     state.players = roomState.players;
     if (roomState.phase === 'waiting') {
       updateRoomPlayers(roomState.players);
+      if (roomState.settings) {
+        state.roomSettings = { ...roomState.settings };
+      }
+      if (roomState.rolePreview) {
+        updateRolePreview(roomState.rolePreview);
+      }
     } else {
       updatePlayerGrid(roomState.players);
     }

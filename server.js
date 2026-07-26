@@ -43,6 +43,17 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('updateSettings', ({ roomId, settings }) => {
+    const room = gameManager.getRoom(roomId);
+    if (!room) return;
+    const host = room.players[0];
+    if (host.socketId !== socket.id) return;
+    if (room.phase !== 'waiting') return;
+
+    room.updateSettings(settings);
+    io.to(room.id).emit('roomUpdate', room.getState());
+  });
+
   socket.on('startGame', ({ roomId }) => {
     const room = gameManager.getRoom(roomId);
     if (!room) return;
