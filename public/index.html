@@ -3,17 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="naver-site-verification" content="832e74f67c8aa44c5f1256621a6e7a18807fa6a5" />
   <title>SJL Studio - 마피아 게임</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 
+  <!-- AUTH -->
+  <section id="screen-auth" class="screen active">
+    <div class="auth-container">
+      <div class="logo">
+        <h1>🔪 마피아 게임</h1>
+        <p class="subtitle">SJL Studio</p>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin">로그인</button>
+        <button class="auth-tab" id="tabRegister">회원가입</button>
+      </div>
+      <div class="auth-form" id="loginForm">
+        <div class="form-group">
+          <input type="text" id="loginUsername" placeholder="닉네임" maxlength="8" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <input type="password" id="loginPassword" placeholder="비밀번호" maxlength="20" autocomplete="off">
+        </div>
+        <button id="btnLogin" class="btn btn-primary btn-large">로그인</button>
+      </div>
+      <div class="auth-form" id="registerForm" style="display:none">
+        <div class="form-group">
+          <input type="text" id="registerUsername" placeholder="닉네임 (2~8자)" maxlength="8" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <input type="password" id="registerPassword" placeholder="비밀번호 (4자 이상)" maxlength="20" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <input type="password" id="registerPasswordConfirm" placeholder="비밀번호 확인" maxlength="20" autocomplete="off">
+        </div>
+        <button id="btnRegister" class="btn btn-primary btn-large">회원가입</button>
+      </div>
+      <p id="authError" class="error-text"></p>
+      <div class="auth-divider"><span>또는</span></div>
+      <button id="btnGuest" class="btn btn-guest btn-large">비회원으로 계속하기</button>
+    </div>
+  </section>
+
   <!-- MAIN MENU -->
-  <section id="screen-main-menu" class="screen active">
+  <section id="screen-main-menu" class="screen">
     <div class="main-menu-container">
       <div class="logo">
         <h1>🔪 마피아 게임</h1>
         <p class="subtitle">SJL Studio</p>
+      </div>
+      <div class="auth-status" id="authStatus">
+        <span id="authStatusText" class="auth-status-text"></span>
+        <button id="btnLogout" class="btn btn-small btn-danger">로그아웃</button>
       </div>
       <div class="form-group">
         <input type="text" id="mainPlayerName" placeholder="닉네임을 입력하세요" maxlength="8" autocomplete="off">
@@ -29,7 +72,7 @@
         <button id="btnRanked" class="btn btn-ranked btn-large" disabled>
           <span class="btn-icon">⚔️</span>
           <span class="btn-label">랭크 게임</span>
-          <span class="btn-desc">자동 매칭 · 6인</span>
+          <span class="btn-desc" id="rankedDesc">자동 매칭 · 6인</span>
         </button>
         <button id="btnFriendly" class="btn btn-friendly btn-large" disabled>
           <span class="btn-icon">🤝</span>

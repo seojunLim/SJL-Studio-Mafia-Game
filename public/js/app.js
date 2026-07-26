@@ -43,6 +43,7 @@
     myVote: null,
     profile: null,
     isRanked: false,
+    isLoggedIn: false,
     roomSettings: { requiredPlayers: 4, mafiaCount: 1, includeDoctor: true, includePolice: true }
   };
 
@@ -60,33 +61,127 @@
     return div.innerHTML;
   }
 
-  // ===== MAIN MENU =====
-  const savedName = sessionStorage.getItem('mafiaPlayerName');
-  if (savedName) {
-    $('#mainPlayerName').value = savedName;
-    fetchProfile(savedName);
+  // ===== AUTH SCREEN =====
+  $('#tabLogin').addEventListener('click', () => {
+    $('#tabLogin').classList.add('active');
+    $('#tabRegister').classList.remove('active');
+    $('#loginForm').style.display = 'flex';
+    $('#registerForm').style.display = 'none';
+    $('#authError').textContent = '';
+  });
+
+  $('#tabRegister').addEventListener('click', () => {
+    $('#tabRegister').classList.add('active');
+    $('#tabLogin').classList.remove('active');
+    $('#registerForm').style.display = 'flex';
+    $('#loginForm').style.display = 'none';
+    $('#authError').textContent = '';
+  });
+
+  function showAuthError(msg) {
+    $('#authError').textContent = msg;
+    setTimeout(() => { $('#authError').textContent = ''; }, 3000);
   }
 
+  $('#btnLogin').addEventListener('click', () => {
+    const username = $('#loginUsername').value.trim();
+    const password = $('#loginPassword').value;
+    if (!username) return showAuthError('닉네임을 입력해주세요.');
+    if (!password) return showAuthError('비밀번호를 입력해주세요.');
+
+    socket.emit('login', { username, password }, (res) => {
+      if (res.error) return showAuthError(res.error);
+      state.isLoggedIn = true;
+      state.playerName = username;
+      state.profile = res.profile;
+      sessionStorage.setItem('mafiaPlayerName', username);
+      enterMainMenu();
+    });
+  });
+
+  $('#loginPassword').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('#btnLogin').click();
+  });
+
+  $('#btnRegister').addEventListener('click', () => {
+    const username = $('#registerUsername').value.trim();
+    const password = $('#registerPassword').value;
+    const confirm = $('#registerPasswordConfirm').value;
+    if (!username) return showAuthError('닉네임을 입력해주세요.');
+    if (!password) return showAuthError('비밀번호를 입력해주세요.');
+    if (password !== confirm) return showAuthError('비밀번호가 일치하지 않습니다.');
+
+    socket.emit('register', { username, password }, (res) => {
+      if (res.error) return showAuthError(res.error);
+      state.isLoggedIn = true;
+      state.playerName = username;
+      state.profile = res.profile;
+      sessionStorage.setItem('mafiaPlayerName', username);
+      enterMainMenu();
+    });
+  });
+
+  $('#registerPasswordConfirm').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('#btnRegister').click();
+  });
+
+  $('#btnGuest').addEventListener('click', () => {
+    state.isLoggedIn = false;
+    state.playerName = '';
+    enterMainMenu();
+  });
+
+  function enterMainMenu() {
+    showScreen('screen-main-menu');
+
+    if (state.isLoggedIn) {
+      $('#authStatus').style.display = 'flex';
+      $('#authStatusText').textContent = state.playerName;
+      $('#mainPlayerName').value = state.playerName;
+      $('#mainPlayerName').disabled = true;
+      $('#btnRanked').disabled = false;
+      $('#btnFriendly').disabled = false;
+      $('#rankedDesc').textContent = '자동 매칭 · 6인';
+      $('#btnRanked').classList.remove('btn-locked');
+      if (state.profile) renderProfileCard(state.profile);
+    } else {
+      $('#authStatus').style.display = 'flex';
+      $('#authStatusText').textContent = '비회원';
+      $('#mainPlayerName').value = '';
+      $('#mainPlayerName').disabled = false;
+      $('#btnRanked').disabled = true;
+      $('#btnFriendly').disabled = true;
+      $('#rankedDesc').textContent = '로그인 필요';
+      $('#btnRanked').classList.add('btn-locked');
+      $('#profileCard').style.display = 'none';
+    }
+  }
+
+  $('#btnLogout').addEventListener('click', () => {
+    state.isLoggedIn = false;
+    state.playerName = '';
+    state.profile = null;
+    sessionStorage.removeItem('mafiaPlayerName');
+    showScreen('screen-auth');
+  });
+
+  // ===== MAIN MENU =====
   let profileDebounce = null;
   $('#mainPlayerName').addEventListener('input', () => {
     const name = $('#mainPlayerName').value.trim();
     const hasName = name.length > 0;
-    $('#btnRanked').disabled = !hasName;
-    $('#btnFriendly').disabled = !hasName;
+    if (!state.isLoggedIn) {
+      $('#btnFriendly').disabled = !hasName;
+    }
 
     if (profileDebounce) clearTimeout(profileDebounce);
-    if (hasName) {
+    if (hasName && state.isLoggedIn) {
       profileDebounce = setTimeout(() => fetchProfile(name), 500);
-    } else {
+    } else if (!state.isLoggedIn) {
       $('#profileCard').style.display = 'none';
       state.profile = null;
     }
   });
-
-  if (savedName) {
-    $('#btnRanked').disabled = false;
-    $('#btnFriendly').disabled = false;
-  }
 
   function fetchProfile(name) {
     socket.emit('getProfile', { playerName: name }, (res) => {
@@ -110,6 +205,7 @@
   }
 
   $('#btnRanked').addEventListener('click', () => {
+    if (!state.isLoggedIn) return showMenuError('랭크 게임은 로그인이 필요합니다.');
     const name = $('#mainPlayerName').value.trim();
     if (!name) return showMenuError('닉네임을 입력해주세요.');
     state.playerName = name;
@@ -141,7 +237,13 @@
   });
 
   $('#mainPlayerName').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') $('#btnRanked').click();
+    if (e.key === 'Enter') {
+      if (state.isLoggedIn) {
+        $('#btnRanked').click();
+      } else {
+        $('#btnFriendly').click();
+      }
+    }
   });
 
   // ===== QUEUE =====

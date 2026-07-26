@@ -17,12 +17,31 @@ const gameManager = new GameManager(io);
 io.on('connection', (socket) => {
   console.log(`Connected: ${socket.id}`);
 
+  socket.on('register', ({ username, password }, callback) => {
+    const result = gameManager.accountManager.register(username, password);
+    if (result.error) return callback({ error: result.error });
+    gameManager.authenticatedSockets.set(socket.id, username);
+    const profile = gameManager.getOrCreateProfile(username);
+    callback({ success: true, profile: profile.toJSON() });
+  });
+
+  socket.on('login', ({ username, password }, callback) => {
+    const result = gameManager.accountManager.login(username, password);
+    if (result.error) return callback({ error: result.error });
+    gameManager.authenticatedSockets.set(socket.id, username);
+    const profile = gameManager.getOrCreateProfile(username);
+    callback({ success: true, profile: profile.toJSON() });
+  });
+
   socket.on('getProfile', ({ playerName }, callback) => {
     const profile = gameManager.getOrCreateProfile(playerName);
     callback({ profile: profile.toJSON() });
   });
 
   socket.on('joinMatchmaking', ({ playerName }, callback) => {
+    if (!gameManager.authenticatedSockets.has(socket.id)) {
+      return callback({ error: '랭크 게임은 로그인이 필요합니다.' });
+    }
     const profile = gameManager.getOrCreateProfile(playerName);
     const result = gameManager.matchmakingQueue.addPlayer(socket.id, playerName, profile.trophies);
     if (result !== 'OK') {
@@ -126,6 +145,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    gameManager.authenticatedSockets.delete(socket.id);
     gameManager.matchmakingQueue.removePlayer(socket.id);
     const room = gameManager.findRoomBySocket(socket.id);
     if (!room) return;

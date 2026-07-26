@@ -1,4 +1,9 @@
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+
+function hashPassword(pw) {
+  return crypto.createHash('sha256').update(pw).digest('hex');
+}
 
 const ROLES = {
   MAFIA: { name: '마피아', team: 'mafia', emoji: '🔪' },
@@ -754,10 +759,37 @@ class MatchmakingQueue {
   }
 }
 
+class AccountManager {
+  constructor() {
+    this.accounts = new Map();
+  }
+
+  register(username, password) {
+    if (!username || username.length < 2 || username.length > 8) return { error: '닉네임은 2~8자로 입력해주세요.' };
+    if (!password || password.length < 4) return { error: '비밀번호는 4자 이상 입력해주세요.' };
+    if (this.accounts.has(username)) return { error: '이미 사용 중인 닉네임입니다.' };
+    this.accounts.set(username, { passwordHash: hashPassword(password) });
+    return { success: true };
+  }
+
+  login(username, password) {
+    const account = this.accounts.get(username);
+    if (!account) return { error: '존재하지 않는 계정입니다.' };
+    if (account.passwordHash !== hashPassword(password)) return { error: '비밀번호가 일치하지 않습니다.' };
+    return { success: true };
+  }
+
+  exists(username) {
+    return this.accounts.has(username);
+  }
+}
+
 class GameManager {
   constructor(io) {
     this.rooms = new Map();
     this.profiles = new Map();
+    this.accountManager = new AccountManager();
+    this.authenticatedSockets = new Map();
     this.io = io;
     this.matchmakingQueue = new MatchmakingQueue(this, io);
   }
