@@ -59,8 +59,9 @@ io.on('connection', (socket) => {
     if (!room) return;
     const host = room.players[0];
     if (host.socketId !== socket.id) return;
-    if (room.players.length < 4) {
-      socket.emit('error', { message: '최소 4명이 필요합니다.' });
+    const required = room.settings.requiredPlayers || 4;
+    if (room.players.length < required) {
+      socket.emit('error', { message: `${required}명이 필요합니다. (현재 ${room.players.length}명)` });
       return;
     }
     room.startGame(io);

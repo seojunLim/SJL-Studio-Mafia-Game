@@ -85,6 +85,7 @@ class Room {
     this.defenseTarget = null;
     this.policeResult = null;
     this.settings = {
+      requiredPlayers: 4,
       mafiaCount: 1,
       includeDoctor: true,
       includePolice: true
@@ -122,7 +123,10 @@ class Room {
   }
 
   updateSettings(settings) {
-    const count = this.players.length;
+    if (settings.requiredPlayers !== undefined) {
+      this.settings.requiredPlayers = Math.min(12, Math.max(4, settings.requiredPlayers));
+    }
+    const count = Math.max(this.players.length, this.settings.requiredPlayers);
     const maxMafia = Math.max(1, Math.floor((count - 1) / 2));
     this.settings.mafiaCount = Math.min(Math.max(1, settings.mafiaCount), maxMafia);
     this.settings.includeDoctor = Boolean(settings.includeDoctor);
@@ -143,10 +147,11 @@ class Room {
   }
 
   getRolePreview() {
-    const count = this.players.length;
+    const count = Math.max(this.players.length, this.settings.requiredPlayers);
     const s = this.settings;
     const citizenCount = count - s.mafiaCount - (s.includeDoctor ? 1 : 0) - (s.includePolice ? 1 : 0);
     return {
+      requiredPlayers: s.requiredPlayers,
       mafiaCount: s.mafiaCount,
       doctorCount: s.includeDoctor ? 1 : 0,
       policeCount: s.includePolice ? 1 : 0,

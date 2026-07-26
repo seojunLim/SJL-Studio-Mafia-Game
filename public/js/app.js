@@ -141,6 +141,7 @@
       html += `<span class="role-preview-item citizen">👤 시민 x${preview.citizenCount}</span>`;
     container.innerHTML = html;
 
+    $('#requiredPlayersDisplay').textContent = preview.requiredPlayers;
     $('#mafiaCountDisplay').textContent = preview.mafiaCount;
 
     const doctorBtn = $('#doctorToggle');
@@ -152,7 +153,21 @@
     policeBtn.classList.toggle('on', preview.includePolice);
   }
 
-  state.roomSettings = { mafiaCount: 1, includeDoctor: true, includePolice: true };
+  state.roomSettings = { requiredPlayers: 4, mafiaCount: 1, includeDoctor: true, includePolice: true };
+
+  $('#playersDown').addEventListener('click', () => {
+    if (state.roomSettings.requiredPlayers > 4) {
+      state.roomSettings.requiredPlayers--;
+      sendSettings();
+    }
+  });
+
+  $('#playersUp').addEventListener('click', () => {
+    if (state.roomSettings.requiredPlayers < 12) {
+      state.roomSettings.requiredPlayers++;
+      sendSettings();
+    }
+  });
 
   $('#mafiaDown').addEventListener('click', () => {
     if (state.roomSettings.mafiaCount > 1) {
@@ -195,14 +210,16 @@
 
   function updateStartButton() {
     const btn = $('#btnStart');
-    if (state.isHost && state.players.length >= 4) {
+    const required = state.roomSettings.requiredPlayers || 4;
+    const enough = state.players.length >= required;
+    if (state.isHost && enough) {
       btn.style.display = 'block';
     } else {
       btn.style.display = 'none';
     }
     const hint = $('.room-footer .hint');
-    if (state.players.length < 4) {
-      hint.textContent = `최소 4명이 필요합니다 (현재 ${state.players.length}명)`;
+    if (!enough) {
+      hint.textContent = `${required}명이 필요합니다 (현재 ${state.players.length}명)`;
     } else {
       hint.textContent = state.isHost ? '게임을 시작할 수 있습니다!' : '방장이 게임을 시작할 때까지 기다려주세요.';
     }
