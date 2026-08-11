@@ -253,8 +253,6 @@ class Room {
     this.phase = 'starting';
     this.day = 0;
 
-    io.to(this.id).emit('chatMessage', { sender: 'AI 진행자', message: '안녕', type: 'ai' });
-
     const aiMsg = randomPick(AI_MESSAGES.gameStart);
     io.to(this.id).emit('chatMessage', { sender: 'AI 진행자', message: aiMsg, type: 'ai' });
 
